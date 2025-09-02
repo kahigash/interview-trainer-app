@@ -6,7 +6,7 @@ import { z } from 'zod';
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 // 面接官AssistantのID（.env.local で ASSISTANT_INTERVIEWER_ID=asst_xxx を推奨）
-const ASSISTANT_INTERVIEWER_ID =
+const ASSISTANT_INTERVIEWER_ID = "asst_3Xe2UjiuUBHXK55xdvAEF167";
   process.env.ASSISTANT_INTERVIEWER_ID || 'asst_xxxxx_replace_me';
 
 // 受け取りボディ（messagesは任意）
