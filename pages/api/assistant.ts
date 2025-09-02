@@ -1,3 +1,4 @@
+// pages/api/assistant.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import OpenAI from 'openai';
 
@@ -5,52 +6,57 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-const ASSISTANT_ID = 'asst_uOT6SSfMZTqaihnoILhKUdg6';
+// 👉 面接用コーチ Assistant のID（環境変数にしてもOK）
+const ASSISTANT_COACH_ID = process.env.ASSISTANT_COACH_ID || 'asst_xxxxxxxx';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { answer, grit_item, questionText } = req.body;
+  const { answer, questionText } = req.body;
 
   if (!answer || typeof answer !== 'string') {
     return res.status(400).json({ error: 'Invalid answer' });
   }
 
-  if (typeof grit_item !== 'number') {
-    return res.status(400).json({ error: 'Missing or invalid grit_item' });
-  }
-
   try {
-    // 🔍 デバッグログ
-    console.log('📨 Assistantに送信:', { answer, grit_item });
+    console.log('📨 Coachに送信:', { questionText, answer });
 
+    // 1) スレッド作成
     const thread = await openai.beta.threads.create();
 
+    // 2) ユーザーメッセージを追加
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
-      content: `【質問】${questionText}\n【回答】${answer}`,
+      content:
+        `【質問】${questionText ?? '(不明)'}\n` +
+        `【回答】${answer}\n` +
+        `出力は必ずJSON形式:\n` +
+        `{"praise":"良い点","improve":"改善点","next_tip":"次のコツ"}`,
     });
 
+    // 3) Run開始
     const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: ASSISTANT_ID,
+      assistant_id: ASSISTANT_COACH_ID,
     });
 
+    // 4) ステータス待ち
     let status = run.status;
     while (status !== 'completed') {
       await new Promise((r) => setTimeout(r, 1000));
       const runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
       status = runStatus.status;
-      if (status === 'failed' || status === 'cancelled') {
+      if (['failed', 'cancelled', 'expired'].includes(status)) {
         throw new Error(`Run failed: ${status}`);
       }
     }
 
+    // 5) 結果メッセージ取得
     const messages = await openai.beta.threads.messages.list(thread.id);
-    const latest = messages.data[0];
-    const textContent = latest.content.find(
-      (c): c is { type: 'text'; text: { value: string; annotations: any } } => c.type === 'text'
+    const latest = messages.data.find((m) => m.role === 'assistant');
+    const textContent = latest?.content.find(
+      (c): c is { type: 'text'; text: { value: string } } => c.type === 'text'
     );
 
     if (!textContent) {
@@ -58,24 +64,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const rawText = textContent.text.value.trim();
-    console.log('🧠 Assistant応答（RAW）:', rawText);
+    console.log('🧠 Coach応答（RAW）:', rawText);
 
-    const match = rawText.match(/({[\s\S]*?})/);
-
+    const match = rawText.match(/({[\s\S]*})/);
     if (!match) {
-      throw new Error('No valid JSON found in Assistant response');
+      throw new Error('No valid JSON found in response');
     }
 
     const json = JSON.parse(match[1]);
 
-    // ✅ Assistantの出力に含まれていたとしても、grit_item は外部指定を優先
-    json.grit_item = grit_item;
-
-    // ✅ grit_item_name は index.tsx 側で付加すること（二重定義を防ぐ）
-
+    // ✅ 出力は { praise, improve, next_tip }
     res.status(200).json(json);
   } catch (error: any) {
-    console.error('[Assistant API Error]', error.message);
+    console.error('[Coach API Error]', error.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
