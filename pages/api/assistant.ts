@@ -55,20 +55,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 5) 結果メッセージ取得
     const messages = await openai.beta.threads.messages.list(thread.id);
     const latest = messages.data.find((m) => m.role === 'assistant');
-    const textContent = latest?.content.find(
-      (c): c is { type: 'text'; text: { value: string } } => c.type === 'text'
-    );
 
-    if (!textContent) {
-      throw new Error('No text response from Assistant');
+    // 型ガードは使わず any 扱いで安全に取り出す
+    const rawText =
+        ((latest?.content as any[]) || [])
+            .map((part: any) => (part?.type === 'text' ? part?.text?.value : ''))
+            .filter(Boolean)
+            .join('\n')
+            .trim();
+
+    if (!rawText) {
+        throw new Error('No text response from Assistant');
     }
 
-    const rawText = textContent.text.value.trim();
     console.log('🧠 Coach応答（RAW）:', rawText);
 
     const match = rawText.match(/({[\s\S]*})/);
     if (!match) {
-      throw new Error('No valid JSON found in response');
+        throw new Error('No valid JSON found in response');
     }
 
     const json = JSON.parse(match[1]);
