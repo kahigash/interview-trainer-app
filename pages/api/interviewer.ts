@@ -1,6 +1,17 @@
+    // pages/api/interviewer.ts
+    import type { NextApiRequest, NextApiResponse } from 'next';
+    import OpenAI from 'openai';
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
+    // 面接官 Assistant のID（直書き or 環境変数）
+    const ASSISTANT_INTERVIEWER_ID =
+        process.env.ASSISTANT_INTERVIEWER_ID || "asst_3Xe2UjiuUBHXK55xdvAEF167";
+
+    // 入力の簡易バリデーション（messagesは任意）
     function isValidBody(body: any): boolean {
-        if (!body || typeof body !== 'object') return true; // messagesは任意
-        if (!('messages' in body)) return true; // 任意なのでOK
+        if (!body || typeof body !== 'object') return true; // messages は任意
+        if (!('messages' in body)) return true;
         const msgs = body.messages;
         if (!Array.isArray(msgs)) return false;
         return msgs.every((m) =>
@@ -10,7 +21,7 @@
         );
     }
 
-    // ❸ 質問の検証（4〜200文字）
+    // 質問の検証（4〜200文字）
     function normalizeQuestion(q: any): string | null {
         if (typeof q !== 'string') return null;
         const t = q.trim();
@@ -25,12 +36,12 @@
             return res.status(400).json({ error: 'invalid body' });
         }
 
-        if (!ASSISTANT_INTERVIEWER_ID || ASSISTANT_INTERVIEWER_ID.includes('replace_me')) {
+        if (!ASSISTANT_INTERVIEWER_ID) {
             return res.status(500).json({ error: 'ASSISTANT_INTERVIEWER_ID not set' });
         }
 
         try {
-            // 履歴の簡潔化（直近3往復）
+            // 履歴の簡潔化（直近3往復をテキスト化）
             const history = (req.body?.messages ?? [])
                 .slice(-6)
                 .map((m: any) => (m.role === 'assistant' ? `Q: ${m.content}` : `A: ${m.content}`))
@@ -43,16 +54,21 @@
                 `出力は必ずJSONのみ:\n` +
                 `{"question":"..."}\n`;
 
+            // 1) Thread作成
             const thread = await client.beta.threads.create();
+
+            // 2) ユーザーメッセージ投入
             await client.beta.threads.messages.create(thread.id, {
                 role: 'user',
                 content: userPayload,
             });
 
+            // 3) Run開始
             const run = await client.beta.threads.runs.create(thread.id, {
                 assistant_id: ASSISTANT_INTERVIEWER_ID,
             });
 
+            // 4) 完了までポーリング
             let runStatus = await client.beta.threads.runs.retrieve(thread.id, run.id);
             while (!['completed', 'failed', 'cancelled', 'expired'].includes(runStatus.status)) {
                 await new Promise((r) => setTimeout(r, 900));
@@ -62,16 +78,21 @@
                 return res.status(500).json({ error: `Run status: ${runStatus.status}` });
             }
 
-            const msgs = await client.beta.threads.messages.list(thread.id, { order: 'desc', limit: 10 });
-            const assistantMsg = msgs.data.find((m) => m.role === 'assistant');
-            const raw =
-                (assistantMsg?.content?.[0]?.type === 'text'
-                    ? (assistantMsg.content[0] as any)?.text?.value
-                    : '')?.trim() ?? '';
+            // 5) 応答取得＆JSON抽出（型に依存しない取り出し）
+            const msgs = await client.beta.threads.messages.list(thread.id);
+            const latest = msgs.data.find((m) => m.role === 'assistant');
 
-            const jsonMatch = raw.match(/({[\s\S]*})/);
-            const candidate = jsonMatch?.[1] ?? raw;
+            const rawText =
+                ((latest?.content as any[]) || [])
+                    .map((part: any) => (part?.type === 'text' ? part?.text?.value : ''))
+                    .filter(Boolean)
+                    .join('\n')
+                    .trim();
 
+            const jsonMatch = rawText.match(/({[\s\S]*})/);
+            const candidate = jsonMatch?.[1] ?? rawText;
+
+            // 6) パース＆検証（フォールバックあり）
             let outQuestion =
                 normalizeQuestion(() => {
                     try {
