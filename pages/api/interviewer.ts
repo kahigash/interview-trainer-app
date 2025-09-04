@@ -94,14 +94,16 @@
 
             // 6) パース＆検証（フォールバックあり）
             let outQuestion =
-                normalizeQuestion(() => {
-                    try {
-                        const parsed = JSON.parse(candidate);
-                        return parsed?.question;
-                    } catch {
-                        return null;
-                    }
-                }()) ??
+                normalizeQuestion(
+                    (() => {
+                        try {
+                            const parsed = JSON.parse(candidate);
+                            return parsed?.question;
+                        } catch {
+                            return null;
+                        }
+                    })()
+                ) ??
                 '最近の業務で最も成果を出した事例を、役割・工夫・数値で具体的に教えてください。';
 
             return res.status(200).json({ question: outQuestion });
