@@ -106,7 +106,7 @@ export default function Home() {
         interviewerRes.data?.result ??
         '次の質問の生成に失敗しました。最近の経験で最も成長できた出来事を教えてください。';
 
-      const nextQuestionId = nextFeedbacks.length + 1 + 1; // 例) 1問目回答後→次は 2
+      const nextQuestionId = nextFeedbacks.length + 1; // 例) 1問目回答後→次は 2
 
       setMessages((prev) => [
         ...prev,
