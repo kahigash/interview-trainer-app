@@ -7,7 +7,7 @@ const openai = new OpenAI({
 });
 
 // 👉 面接用コーチ Assistant のID（環境変数にしてもOK）
-const ASSISTANT_COACH_ID = process.env.ASSISTANT_COACH_ID || 'asst_xxxxxxxx';
+const ASSISTANT_COACH_ID = process.env.ASSISTANT_COACH_ID || 'asst_HkJsfiBZipI20wWSSntlg434';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
