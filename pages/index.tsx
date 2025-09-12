@@ -1,6 +1,32 @@
 'use client';
 
 import { useState } from 'react';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+
+export default function Home() {
+  const [session, setSession] = useState<any>(/* 既存のsession */);
+  const [displaySession, setDisplaySession] = useState<any>(session);
+
+  return (
+    <main>
+      <h1>面接トレーニング</h1>
+
+      {/* 言語切替コンポーネント */}
+      <LanguageSwitcher session={session} onTranslated={setDisplaySession} />
+
+      {/* 表示用は displaySession */}
+      {displaySession?.items?.map((it: any) => (
+        <div key={it.id}>
+          <p>Q: {it.question}</p>
+          <p>A: {it.answer}</p>
+          <p>意図: {it.feedback.intent}</p>
+          {/* 他のフィードバックもここに */}
+        </div>
+      ))}
+    </main>
+  );
+}
+
 import axios from 'axios';
 
 type Role = 'user' | 'assistant';
