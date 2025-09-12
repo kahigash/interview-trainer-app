@@ -296,41 +296,30 @@ export default function Home() {
         )}
       </div>
 
-      {/* 右ペイン：即時フィードバック（翻訳は displaySession を使用） */}
-      <div style={{ flex: 1, position: 'sticky', top: 24 }}>
-        <h3 style={{ marginBottom: 8 }}>即時フィードバック</h3>
-        {displaySession?.items?.length === 0 && (
-          <p style={{ color: '#666' }}>
-            回答すると、ここに「質問の意図」「評価」「改善ポイント」「日本語の改善」が表示されます。
-          </p>
-        )}
+import FeedbackCards from '../components/FeedbackCards'; // ←追加
 
-        {displaySession?.items?.map((it: any, idx: number) => (
-          <div key={idx} style={card}>
-            <div style={{ marginBottom: 6 }}>
-              <span style={badge}>質問{it.id ?? idx + 1}</span>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>応募者向けコーチング</span>
-            </div>
+{/* 右ペイン：即時フィードバック */}
+<div style={{ flex: 1, position: 'sticky', top: 24 }}>
+  <h3 style={{ marginBottom: 8 }}>即時フィードバック</h3>
+  {displaySession?.items?.length === 0 && (
+    <p style={{ color: '#666' }}>
+      回答すると、ここに「質問の意図」「評価」「改善ポイント」「日本語の改善」が表示されます。
+    </p>
+  )}
 
-            <div style={label}>質問</div>
-            <p style={value}>{it.question}</p>
+  {displaySession?.items?.map((it: any, idx: number) => (
+    <div key={idx} style={card}>
+      <div style={{ marginBottom: 6 }}>
+        <span style={badge}>質問{it.id ?? idx + 1}</span>
+        <span style={{ fontSize: 12, color: '#6b7280' }}>応募者向けコーチング</span>
+      </div>
 
-            <div style={label}>回答</div>
-            <p style={value}>{it.answer}</p>
+      {/* 👇従来の4ブロックを差し替え */}
+      <FeedbackCards feedback={it.feedback} />
+    </div>
+  ))}
+</div>
 
-            <div style={label}>質問の意図</div>
-            <p style={value}>{it.feedback?.intent}</p>
-
-            <div style={label}>回答の評価</div>
-            <p style={value}>{it.feedback?.evaluation}</p>
-
-            <div style={label}>改善ポイント</div>
-            <p style={value}>{it.feedback?.improvement}</p>
-
-            <div style={label}>日本語の改善</div>
-            <p style={value}>{it.feedback?.japanese}</p>
-          </div>
-        ))}
       </div>
     </div>
   );
