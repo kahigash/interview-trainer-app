@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 1) スレッド作成
     const thread = await openai.beta.threads.create();
 
-    // 2) ユーザーメッセージを追加
+    // 2) ユーザーメッセージを追加（Assistants側のSystem instructionsに評価ルールを集約している前提）
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
       content: `【質問】${questionText ?? '(不明)'}\n【回答】${answer}`,
@@ -60,23 +60,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .join('\n')
         .trim();
 
-    if (!rawText) {
-      throw new Error('No text response from Assistant');
-    }
+    if (!rawText) throw new Error('No text response from Assistant');
 
     console.log('🧠 Coach応答（RAW）:', rawText);
 
-    const match = rawText.match(/({[\\s\\S]*})/);
-    if (!match) {
+    // --- 堅牢化パッチ: コードフェンス/前置き除去 & 最初のJSON抽出 ---
+    const sanitized = rawText
+      .replace(/```json\s*([\s\S]*?)\s*```/gi, '$1') // ```json ... ``` を剥がす
+      .replace(/```\s*([\s\S]*?)\s*```/g, '$1')      // ``` ... ``` を剥がす
+      .trim();
+
+    // 最初の { ... } または [ ... ] を抽出
+    const jsonMatch = sanitized.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+    if (!jsonMatch) {
       throw new Error('No valid JSON found in response');
     }
 
-    const json = JSON.parse(match[1]);
+    let json: any;
+    try {
+      json = JSON.parse(jsonMatch[1]);
+    } catch (e) {
+      console.error('JSON parse failed. snippet=', jsonMatch[1]?.slice(0, 300));
+      throw e;
+    }
 
-    // ✅ 出力は { intent, evaluation, improvement, japanese }
+    // ✅ 期待キーが揃っているか軽く検証（不足はwarnのみ）
+    const expectedKeys = ['intent', 'evaluation', 'improvement', 'japanese'];
+    for (const k of expectedKeys) {
+      if (!(k in json)) {
+        console.warn(`Missing key: ${k} in coach response`);
+      }
+    }
+
     res.status(200).json(json);
   } catch (error: any) {
-    console.error('[Coach API Error]', error.message);
+    console.error('[Coach API Error]', error?.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
