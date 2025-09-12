@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 type Role = 'user' | 'assistant';
 
