@@ -26,13 +26,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 1) スレッド作成
     const thread = await openai.beta.threads.create();
 
-    // 2) ユーザーメッセージを追加
+    // 2) ユーザーメッセージを追加（★ここだけ修正）
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
       content:
+        `【役割】あなたは面接コーチです。以下のルールに厳密に従ってください。\n` +
+        `- 「質問の意図」は必ず【質問】の本文を参照して説明する。回答文から推測しない。\n` +
+        `- 質問1は固定文（「それでは、経歴や実績を交えてまずは自己紹介をお願いします。」）である。\n` +
+        `  この場合の「質問の意図」は必ず「候補者の経歴・実績を踏まえて自己紹介を求める意図」とする。\n` +
+        `- 上記以外の設問でも、質問文を要約し、意図を一文で明確に述べること。\n` +
+        `\n` +
         `【質問】${questionText ?? '(不明)'}\n` +
         `【回答】${answer}\n` +
-        `出力は必ずJSON形式:\n` +
+        `\n` +
+        `出力は必ずJSON形式のみ：（他の文字や説明を含めない）\n` +
         `{"praise":"良い点","improve":"改善点","next_tip":"次のコツ"}`,
     });
 
@@ -58,21 +65,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 型ガードは使わず any 扱いで安全に取り出す
     const rawText =
-        ((latest?.content as any[]) || [])
-            .map((part: any) => (part?.type === 'text' ? part?.text?.value : ''))
-            .filter(Boolean)
-            .join('\n')
-            .trim();
+      ((latest?.content as any[]) || [])
+        .map((part: any) => (part?.type === 'text' ? part?.text?.value : ''))
+        .filter(Boolean)
+        .join('\n')
+        .trim();
 
     if (!rawText) {
-        throw new Error('No text response from Assistant');
+      throw new Error('No text response from Assistant');
     }
 
     console.log('🧠 Coach応答（RAW）:', rawText);
 
     const match = rawText.match(/({[\s\S]*})/);
     if (!match) {
-        throw new Error('No valid JSON found in response');
+      throw new Error('No valid JSON found in response');
     }
 
     const json = JSON.parse(match[1]);
