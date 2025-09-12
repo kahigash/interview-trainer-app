@@ -1,6 +1,13 @@
 'use client';
 import { useState } from 'react';
-import type { CoachFeedback } from '@/shared/types';
+
+// ローカル型（最小）
+export type CoachFeedback = {
+  intent?: string;
+  evaluation?: string;
+  improvement?: string;
+  japanese?: string;
+};
 
 const tabs = [
   { k: 'intent', label: '意図' },
@@ -16,7 +23,7 @@ export default function FeedbackCardsTabs({ feedback }: { feedback: CoachFeedbac
   return (
     <div style={{ border: '1px solid #e5e7eb', borderRadius: 10 }}>
       <div style={{ display: 'flex', gap: 8, padding: 8, borderBottom: '1px solid #e5e7eb' }}>
-        {tabs.map(t => (
+        {tabs.map((t) => (
           <button
             key={t.k}
             onClick={() => setActive(t.k)}
