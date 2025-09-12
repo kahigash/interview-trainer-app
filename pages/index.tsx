@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import FeedbackCards from '../components/FeedbackCards';
+import FeedbackCards from '../components/FeedbackCardsTabs';
 
 type Role = 'user' | 'assistant';
 
