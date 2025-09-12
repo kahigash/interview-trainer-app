@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 2) ユーザーメッセージを追加（Assistants側のSystem instructionsに評価ルールを集約している前提）
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
-      content: `【質問】${questionText ?? '(不明)'}\n【回答】${answer}`,
+      content: `【質問】${questionText || ''}\n【回答】${answer}`,
     });
 
     // 3) Run開始
